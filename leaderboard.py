@@ -7,48 +7,74 @@ import re
 
 
 class RequestAPI:
+    """
+    RequestAPI object designed to send requests to the Diabotical API leaderboard
+    with different behavior depending on received parameters.
+    Method to use: RequestApi.perform() which takes all the required parameters from the constructor.
+    Other methods are protected.
+    """
     def __init__(self, **kwargs):
-
+        """
+        Constructor of the RequestAPI class. Setting up parameters (checks if available. sets defaults).
+        Setting up the API leaderboard URL.
+        :param kwargs: arguments received from the parser. <Mode> is required argument, <count>, <user_id> and <country>
+        are optional.
+        """
         # Setting up game mode. Checks of the mode itself should be performed in parser.
         try:
-            self.mode = kwargs['mode']
-        except KeyError:
-            raise KeyError("Invalid arguments received from the parser!")
+            self.mode: str = kwargs['mode']
+        except KeyError as arg_err:
+            arg_err.__str__ = "Invalid arguments received from the parser!"
+            raise
 
         # Setting up count. Checks of the count itself should be performed in parser.
         try:
-            self.count = kwargs['count']
-        except KeyError:
-            raise KeyError("Invalid arguments received from the parser!")
+            self.count: int = kwargs['count']
+        except KeyError as arg_err:
+            arg_err.__str__ = "Invalid arguments received from the parser!"
+            raise
 
         if self.count is None:
             self.count = 20
 
         # Setting up user_id. Checks of the user_id itself should be performed in parser.
         try:
-            self.user_id = kwargs['user_id']
-        except KeyError:
-            raise KeyError("Invalid arguments received from the parser!")
+            self.user_id: str = kwargs['user_id']
+        except KeyError as arg_err:
+            arg_err.__str__ = "Invalid arguments received from the parser!"
+            raise
 
         # Setting up country. Checks of the country itself should be performed in parser.
         try:
-            self.country = kwargs['country']
-        except KeyError:
-            raise KeyError("Invalid arguments received from the parser!")
+            self.country: str = kwargs['country']
+        except KeyError as arg_err:
+            arg_err.__str__ = "Invalid arguments received from the parser!"
+            raise
 
-        self.url = 'https://www.diabotical.com/api/v0/stats/leaderboard'
+        # Setting up API URL.
+        self.url: str = 'https://www.diabotical.com/api/v0/stats/leaderboard'
 
-        # self.logpath = "./leaderboard_logs"
-
-    def _perform_request(self) -> json:
-        result = []
-        pars = {'mode': f'{self.mode}', 'offset': 0}
-        pages = self.count // 20
+    def _perform_request(self) -> list:
+        """
+        Protected method for requesting the API and checking the result of the request.
+        The API standard output is 1 page of 20 entries, so multiple requests can be made depending on requested
+        quantity of entries (<count> argument).
+        :return: a list of dictionaries, containing requested amount of user's entries.
+        """
+        result: list = []
+        pars: dict = {'mode': f'{self.mode}', 'offset': 0}
+        pages: int = self.count // 20
         if self.count % 20 > 1:
             pages += 1
 
-        def connect_to_api(url, parameters):
-
+        def connect_to_api(url, parameters) -> list:
+            """
+            Built-in function to actually connect to API. Performs connect, check if the response body
+            has required information.
+            :param url: url to request
+            :param parameters: dictionary with the parameters of the request.
+            :return: a list of dictionaries, containing 20 user's entries from the requested page.
+            """
             try:
                 response = requests.get(url, timeout=2, params=parameters)
                 response.raise_for_status()
@@ -60,14 +86,17 @@ class RequestAPI:
                 raise
 
             try:
-                data = response.json()["leaderboard"]
-            except (ValueError, KeyError):
-                return "Bad response, unable to decode."
+                data: list = response.json()["leaderboard"]
+            except (ValueError, KeyError) as data_err:
+                data_err.__str__ = "Bad response, unable to decode."
+                raise
             return data
 
+        # Single request (count 20 or less)
         if pages < 2:
             result = connect_to_api(self.url, pars)
 
+        # Multiple requests (count more than 20)
         else:
             for i in range(pages):
                 pars['offset'] = i * 20
@@ -87,10 +116,14 @@ class RequestAPI:
         return result[0:self.count]
 
     def _default_request(self) -> json:
+        """
+        Task point #1. Requests information of the <count> users and returns it as json without "user_id" field.
+        :return: json obj with user entries.
+        """
         try:
-            result = self._perform_request()
-        except Exception as err:
-            return err.__str__
+            result: list = self._perform_request()
+        except Exception:
+            raise
         for entry in result:
             del entry['user_id']
         output = result
@@ -98,13 +131,23 @@ class RequestAPI:
         return json.dumps(output, indent=4)
 
     def _search_by_userid(self) -> json:
+        """
+        Task point #2. Requests information of the <count> users and searches it for the specific user
+        with the <user_id> parameter.
+        :return: json obj with requested user's entry (without "user_id") or with the info string if user is not found.
+        """
         try:
-            users_unfiltered = self._perform_request()
-        except Exception as err:
-            return err.__str__
-        u_id = self.user_id
+            users_unfiltered: list = self._perform_request()
+        except Exception:
+            raise
+        u_id: str = self.user_id
 
         def user_filter(entry: dict) -> bool:
+            """
+            Filter function for searching the user in the list received from API.
+            :param entry: user's entry
+            :return: True if the user is found, False otherwise.
+            """
             if entry['user_id'] == u_id:
                 return True
             else:
@@ -123,14 +166,25 @@ class RequestAPI:
         return json.dumps(output, indent=4)
 
     def _count_users_by_country(self) -> json:
+        """
+        Task point #3. Searches in the user's list for the users from a specific country with the <country> parameter.
+        Ignores users without country information.
+        :return: json obj with the number of players of a given country within requested amount of user's or with
+        the information string if there are no users from the requested country.
+        """
         try:
             users_unfiltered: list = self._perform_request()
-        except Exception as err:
-            return err.__str__
+        except Exception:
+            raise
 
         country: str = self.country
 
         def country_filter(entry: dict) -> bool:
+            """
+            Filter function for the country searching.
+            :param entry: user's entry
+            :return: True if the user is from the requested country, False otherwise
+            """
             if entry['country'] == country:
                 return True
             else:
@@ -149,17 +203,36 @@ class RequestAPI:
         return json.dumps(output)
 
     def perform(self):
+        """
+        Requests information of the <count> users. Passes the information received to the specific method depending
+        on the args <user_id> or <country> (or absence of those).
+        :return: json object with the result of the specific method's work.
+        """
+        try:
+            users_list: list = self._perform_request()
+        except Exception:
+            raise
+
         if self.user_id:
-            result = self._search_by_userid()
+            result = self._search_by_userid(users_list)
         elif self.country:
-            result = self._count_users_by_country()
+            result = self._count_users_by_country(users_list)
         else:
-            result = self._default_request()
+            result = self._default_request(users_list)
         return result
 
 
-class Leaderboard:
+class LeaderboardParser:
+    """
+    A parser for the command line arguments. Parses and checks arguments received.
+    """
     def __init__(self):
+        """
+        A constructor. Specifying the arguments in conformity with the task.
+        Restrictions for the arguments are established due to leaderboard properties
+        (there are 500 entries in every mode) and user's actual properties (<user_id> and <country format>).
+        Arguments <user-id> and <country> are mutually exclusive.
+        """
         self.parser = argparse.ArgumentParser(description="Parameters: [-mode <MODE>], -- count <N>, --user_id, "
                                                           "<USER_id>, --country <COUNTRY>")
         self.parser.add_argument('--mode', action='store', type=str, required=True,
@@ -176,6 +249,10 @@ class Leaderboard:
                                              'given range of users. Consists of two lowercase letters')
 
     def parse_args(self):
+        """
+        Performs parsing and checks.
+        :return: A dictionary with arguments.
+        """
         arguments = self.parser.parse_args(sys.argv[1:])
 
         # checking mode
@@ -188,29 +265,26 @@ class Leaderboard:
                 self.parser.error('Count must be from 1 to 500!')
 
         # checking user_id
-        user_id_format = r'[a-z0-9]{32}'
-        if not re.match(user_id_format, arguments.user_id):
-            self.parser.error('Incorrect user_id format. Id must consist of 32 lowercase letters or digits.')
+        if arguments.user_id is not None:
+            user_id_format = r'[a-z0-9]{32}'
+            if not re.match(user_id_format, arguments.user_id):
+                self.parser.error('Incorrect user_id format. Id must consist of 32 lowercase letters or digits.')
 
         # checking country
-        country_format = r'[a-z]{2}'
-        if not re.match(country_format, arguments.user_id):
-            self.parser.error('Incorrect country format. Country must consist of two lowercase letters.')
+        if arguments.country is not None:
+            country_format = r'[a-z]{2}'
+            if not re.match(country_format, arguments.country):
+                self.parser.error('Incorrect country format. Country must consist of two lowercase letters.')
 
         return arguments.__dict__
 
 
 if __name__ == "__main__":
-    # r = RequestAPI()
-    # print(r.default_request())
-    # print(r.count_users_by_country("ru"))
-    # print(r.search_by_userid('b325363ffe6d46c8840c951b334cc09c'))
-
-    ldbrd = Leaderboard()
+    ldbrd = LeaderboardParser()
     ldbrd_args = ldbrd.parse_args()
-    rqst = RequestAPI(**ldbrd_args)
-    # rqst = RequestAPI(mode='r_macguffin', count=42, user_id=None, country='de')
-    # rqst = RequestAPI(mode='r_macguffin', count=500, user_id='b325363ffe6d46c8840c951b334cc09c', country=None)
-    a = rqst.perform()
-    print(a)
-
+    try:
+        rqst = RequestAPI(**ldbrd_args)
+        information = rqst.perform()
+        print(information)
+    except Exception as error:
+        print(error.__str__)
