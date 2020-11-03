@@ -12,6 +12,10 @@ class TestRequestAPI(unittest.TestCase):
         # перед каждым тестом, мб очистка значений
         pass
 
+    def test_perform_request(self):
+        pass
+
+
     @classmethod
     def tearDownClass(cls):
         # мб убрать тестовые логи
