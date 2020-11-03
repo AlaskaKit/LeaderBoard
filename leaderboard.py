@@ -115,31 +115,28 @@ class RequestAPI:
 
         return result[0:self.count]
 
-    def _default_request(self) -> json:
+    @staticmethod
+    def _default_request(u_list: list) -> json:
         """
-        Task point #1. Requests information of the <count> users and returns it as json without "user_id" field.
-        :return: json obj with user entries.
+        Task point #1. Takes a list of the <count> users and returns it as json object without "user_id" field.
+        :param u_list: list of the users received from the API request.
+        :return: json object with user entries.
         """
-        try:
-            result: list = self._perform_request()
-        except Exception:
-            raise
-        for entry in result:
+        for entry in u_list:
             del entry['user_id']
-        output = result
+        output = u_list
 
         return json.dumps(output, indent=4)
 
-    def _search_by_userid(self) -> json:
+    def _search_by_userid(self, u_list: list) -> json:
         """
-        Task point #2. Requests information of the <count> users and searches it for the specific user
-        with the <user_id> parameter.
-        :return: json obj with requested user's entry (without "user_id") or with the info string if user is not found.
+        Task point #2. Takes a list of the <count> users and searches it for the specific user with the <user_id>
+        parameter.
+        :param u_list: list of the users received from the API request.
+        :return: json object with requested user's entry (without "user_id") or the info string if user is not found.
         """
-        try:
-            users_unfiltered: list = self._perform_request()
-        except Exception:
-            raise
+
+        users_unfiltered: list = u_list
         u_id: str = self.user_id
 
         def user_filter(entry: dict) -> bool:
@@ -165,18 +162,16 @@ class RequestAPI:
 
         return json.dumps(output, indent=4)
 
-    def _count_users_by_country(self) -> json:
+    def _count_users_by_country(self, u_list: list) -> json:
         """
         Task point #3. Searches in the user's list for the users from a specific country with the <country> parameter.
         Ignores users without country information.
+        :param u_list: list of the users received from the API request.
         :return: json obj with the number of players of a given country within requested amount of user's or with
         the information string if there are no users from the requested country.
         """
-        try:
-            users_unfiltered: list = self._perform_request()
-        except Exception:
-            raise
 
+        users_unfiltered: list = u_list
         country: str = self.country
 
         def country_filter(entry: dict) -> bool:
@@ -230,7 +225,7 @@ class LeaderboardParser:
         """
         A constructor. Specifying the arguments in conformity with the task.
         Restrictions for the arguments are established due to leaderboard properties
-        (there are 500 entries in every mode) and user's actual properties (<user_id> and <country format>).
+        (there are 500 entries in every mode) and user's actual properties (<user_id> and <country> format).
         Arguments <user-id> and <country> are mutually exclusive.
         """
         self.parser = argparse.ArgumentParser(description="Parameters: [-mode <MODE>], -- count <N>, --user_id, "
