@@ -243,12 +243,12 @@ class LeaderboardParser:
                                         help='Country selection to display the number of users of such country within '
                                              'given range of users. Consists of two lowercase letters')
 
-    def parse_args(self):
+    def parse_args(self, *args):
         """
         Performs parsing and checks.
         :return: A dictionary with arguments.
         """
-        arguments = self.parser.parse_args(sys.argv[1:])
+        arguments = self.parser.parse_args(*args)
 
         # checking mode
         if arguments.mode not in ['r_macguffin', 'r_wo', 'r_rocket_arena_2', 'r_shaft_arena_1', 'r_ca_2', 'r_ca_1']:
@@ -276,7 +276,7 @@ class LeaderboardParser:
 
 if __name__ == "__main__":
     ldbrd = LeaderboardParser()
-    ldbrd_args = ldbrd.parse_args()
+    ldbrd_args = ldbrd.parse_args(sys.argv[1:])
     try:
         rqst = RequestAPI(**ldbrd_args)
         information = rqst.perform()
